@@ -1,0 +1,788 @@
+import React, { useState, useEffect } from 'react';
+import { BookOpen, Code, CheckCircle, Download, PlayCircle, Users, Trophy, BarChart3 } from 'lucide-react';
+
+const WebDevLearning = () => {
+  const [currentTab, setCurrentTab] = useState('html');
+  const [currentLesson, setCurrentLesson] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [showResult, setShowResult] = useState(false);
+  const [studentName, setStudentName] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showTeacherDashboard, setShowTeacherDashboard] = useState(false);
+  const [allStudentsData, setAllStudentsData] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // Replit Database URL - REPLACE THIS with your actual Replit Database URL
+  const DATABASE_URL = 'YOUR_REPLIT_DATABASE_URL_HERE';
+
+  const lessons = {
+    html: [
+      {
+        title: 'Heading Tags (h1-h6)',
+        description: 'HTML හි headings භාවිතා කරන්නේ මාතෘකා සහ උප මාතෘකා නිර්මාණය කිරීමට. h1 වඩාත්ම වැදගත්, h6 අවම වැදගත්.',
+        example: `<h1>Main Title</h1>
+<h2>Subtitle</h2>
+<h3>Section Heading</h3>`,
+        questions: [
+          { q: 'Create a main heading with text "Welcome to My Website"', answer: '<h1>Welcome to My Website</h1>' },
+          { q: 'Create a second level heading with "About Us"', answer: '<h2>About Us</h2>' },
+          { q: 'Create the smallest heading with "Contact Info"', answer: '<h6>Contact Info</h6>' }
+        ]
+      },
+      {
+        title: 'Paragraph & Line Break',
+        description: 'Paragraphs නිර්මාණය කිරීමට <p> tag භාවිතා කරන්න. Line breaks සඳහා <br> භාවිතා කරන්න.',
+        example: `<p>This is a paragraph.</p>
+<p>Line one<br>Line two</p>`,
+        questions: [
+          { q: 'Create a paragraph with text "This is my first paragraph"', answer: '<p>This is my first paragraph</p>' },
+          { q: 'Create a paragraph with two lines: "Hello World" and "Welcome" (use br tag)', answer: '<p>Hello World<br>Welcome</p>' }
+        ]
+      },
+      {
+        title: 'Links & Images',
+        description: 'Links සඳහා <a> tag සහ images සඳහා <img> tag භාවිතා කරන්න.',
+        example: `<a href="https://google.com">Google</a>
+<img src="photo.jpg" alt="Description">`,
+        questions: [
+          { q: 'Create a link to "https://example.com" with text "Click Here"', answer: '<a href="https://example.com">Click Here</a>' },
+          { q: 'Create an image tag with src "logo.png" and alt text "Company Logo"', answer: '<img src="logo.png" alt="Company Logo">' }
+        ]
+      },
+      {
+        title: 'Lists (Ordered & Unordered)',
+        description: 'Unordered lists සඳහා <ul> සහ ordered lists සඳහා <ol> භාවිතා කරන්න. Items සඳහා <li>.',
+        example: `<ul>
+  <li>Item 1</li>
+  <li>Item 2</li>
+</ul>
+
+<ol>
+  <li>First</li>
+  <li>Second</li>
+</ol>`,
+        questions: [
+          { q: 'Create an unordered list with items "Apple" and "Banana"', answer: '<ul><li>Apple</li><li>Banana</li></ul>' },
+          { q: 'Create an ordered list with items "First" and "Second"', answer: '<ol><li>First</li><li>Second</li></ol>' }
+        ]
+      },
+      {
+        title: 'Divs & Spans',
+        description: '<div> block-level container එකක් සහ <span> inline container එකක්.',
+        example: `<div>Block content</div>
+<span>Inline content</span>`,
+        questions: [
+          { q: 'Create a div with text "Container Block"', answer: '<div>Container Block</div>' },
+          { q: 'Create a span with text "Inline Text"', answer: '<span>Inline Text</span>' }
+        ]
+      },
+      {
+        title: 'Tables',
+        description: 'Tables නිර්මාණය කිරීමට <table>, <tr> (rows), <td> (cells), <th> (headers) භාවිතා කරන්න.',
+        example: `<table>
+  <tr>
+    <th>Name</th>
+    <th>Age</th>
+  </tr>
+  <tr>
+    <td>John</td>
+    <td>25</td>
+  </tr>
+</table>`,
+        questions: [
+          { q: 'Create a table row with header cells "Product" and "Price"', answer: '<tr><th>Product</th><th>Price</th></tr>' },
+          { q: 'Create a table row with data cells "Apple" and "100"', answer: '<tr><td>Apple</td><td>100</td></tr>' }
+        ]
+      },
+      {
+        title: 'Forms & Inputs',
+        description: 'Forms නිර්මාණය කිරීමට <form>, <input>, <button> tags භාවිතා කරන්න.',
+        example: `<form>
+  <input type="text" placeholder="Name">
+  <button>Submit</button>
+</form>`,
+        questions: [
+          { q: 'Create a text input with placeholder "Enter your email"', answer: '<input type="text" placeholder="Enter your email">' },
+          { q: 'Create a submit button with text "Send"', answer: '<button>Send</button>' }
+        ]
+      }
+    ],
+    css: [
+      {
+        title: 'Colors & Backgrounds',
+        description: 'CSS භාවිතයෙන් colors සහ backgrounds වෙනස් කරන්න.',
+        example: `color: blue;
+background-color: yellow;
+background: #ff0000;`,
+        questions: [
+          { q: 'Set text color to red', answer: 'color: red;' },
+          { q: 'Set background color to lightblue', answer: 'background-color: lightblue;' },
+          { q: 'Set background to hex color #00ff00', answer: 'background: #00ff00;' }
+        ]
+      },
+      {
+        title: 'Text Styling',
+        description: 'Font size, weight, style වෙනස් කිරීම.',
+        example: `font-size: 20px;
+font-weight: bold;
+font-style: italic;
+text-align: center;`,
+        questions: [
+          { q: 'Set font size to 24 pixels', answer: 'font-size: 24px;' },
+          { q: 'Make text bold', answer: 'font-weight: bold;' },
+          { q: 'Center align text', answer: 'text-align: center;' }
+        ]
+      },
+      {
+        title: 'Box Model (Margin & Padding)',
+        description: 'Margins සහ paddings භාවිතා කරමින් spacing පාලනය කිරීම.',
+        example: `margin: 10px;
+padding: 20px;
+margin-top: 5px;
+padding-left: 15px;`,
+        questions: [
+          { q: 'Set margin to 15 pixels on all sides', answer: 'margin: 15px;' },
+          { q: 'Set padding to 25 pixels on all sides', answer: 'padding: 25px;' },
+          { q: 'Set only top margin to 10 pixels', answer: 'margin-top: 10px;' }
+        ]
+      },
+      {
+        title: 'Borders',
+        description: 'Elements වටා borders එක් කිරීම.',
+        example: `border: 2px solid black;
+border-radius: 10px;
+border-color: blue;`,
+        questions: [
+          { q: 'Create a 3px solid red border', answer: 'border: 3px solid red;' },
+          { q: 'Add border radius of 15 pixels', answer: 'border-radius: 15px;' }
+        ]
+      },
+      {
+        title: 'Display & Position',
+        description: 'Elements ගේ display සහ positioning වෙනස් කිරීම.',
+        example: `display: block;
+display: inline;
+display: flex;
+position: relative;
+position: absolute;`,
+        questions: [
+          { q: 'Set display to flex', answer: 'display: flex;' },
+          { q: 'Set position to absolute', answer: 'position: absolute;' }
+        ]
+      },
+      {
+        title: 'Width & Height',
+        description: 'Elements වල width සහ height සකසන්න.',
+        example: `width: 100px;
+height: 200px;
+max-width: 500px;
+min-height: 150px;`,
+        questions: [
+          { q: 'Set width to 300 pixels', answer: 'width: 300px;' },
+          { q: 'Set height to 400 pixels', answer: 'height: 400px;' },
+          { q: 'Set max-width to 600 pixels', answer: 'max-width: 600px;' }
+        ]
+      }
+    ],
+    js: [
+      {
+        title: 'Variables',
+        description: 'Variables භාවිතයෙන් data store කිරීම.',
+        example: `let name = "John";
+const age = 25;
+var city = "Colombo";`,
+        questions: [
+          { q: 'Create a variable "message" with value "Hello World"', answer: 'let message = "Hello World";' },
+          { q: 'Create a constant "PI" with value 3.14', answer: 'const PI = 3.14;' }
+        ]
+      },
+      {
+        title: 'Functions',
+        description: 'Functions නිර්මාණය සහ භාවිතය.',
+        example: `function greet() {
+  console.log("Hello");
+}
+greet();`,
+        questions: [
+          { q: 'Create a function named "sayHello" that logs "Hi"', answer: 'function sayHello() { console.log("Hi"); }' },
+          { q: 'Call the function sayHello', answer: 'sayHello();' }
+        ]
+      },
+      {
+        title: 'Conditionals (if/else)',
+        description: 'Conditions පරීක්ෂා කිරීම.',
+        example: `if (age > 18) {
+  console.log("Adult");
+} else {
+  console.log("Minor");
+}`,
+        questions: [
+          { q: 'Write an if statement to check if x is greater than 10', answer: 'if (x > 10) { }' },
+          { q: 'Add else block that logs "Small"', answer: 'else { console.log("Small"); }' }
+        ]
+      },
+      {
+        title: 'Loops (for/while)',
+        description: 'Loops භාවිතයෙන් කේතය නැවත නැවත ධාවනය කිරීම.',
+        example: `for (let i = 0; i < 5; i++) {
+  console.log(i);
+}
+
+while (x < 10) {
+  x++;
+}`,
+        questions: [
+          { q: 'Create a for loop that runs from 0 to 3', answer: 'for (let i = 0; i < 3; i++) { }' },
+          { q: 'Create a while loop that runs while y is less than 5', answer: 'while (y < 5) { }' }
+        ]
+      },
+      {
+        title: 'Arrays',
+        description: 'Arrays භාවිතයෙන් බොහෝ values එකතු කිරීම.',
+        example: `let fruits = ["apple", "banana"];
+fruits.push("orange");
+console.log(fruits[0]);`,
+        questions: [
+          { q: 'Create an array named "colors" with "red" and "blue"', answer: 'let colors = ["red", "blue"];' },
+          { q: 'Access the first element of colors array', answer: 'colors[0]' }
+        ]
+      },
+      {
+        title: 'DOM Manipulation',
+        description: 'HTML elements JavaScript භාවිතයෙන් වෙනස් කිරීම.',
+        example: `document.getElementById("demo").innerHTML = "New text";
+document.querySelector(".class").style.color = "red";`,
+        questions: [
+          { q: 'Get element by id "myDiv" and change its innerHTML to "Updated"', answer: 'document.getElementById("myDiv").innerHTML = "Updated";' },
+          { q: 'Select element with class "box" and change its color to blue', answer: 'document.querySelector(".box").style.color = "blue";' }
+        ]
+      }
+    ]
+  };
+
+  // Database Functions using localStorage as fallback (Replit DB will be added via backend)
+  const saveStudentData = async (studentData) => {
+    try {
+      // Save locally first
+      localStorage.setItem(`student_${studentName}`, JSON.stringify(studentData));
+      
+      // Try to save to backend if available
+      if (DATABASE_URL && DATABASE_URL !== 'YOUR_REPLIT_DATABASE_URL_HERE') {
+        await fetch('/api/save-student', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(studentData)
+        });
+      }
+      return true;
+    } catch (error) {
+      console.error('Save error:', error);
+      return false;
+    }
+  };
+
+  const loadAllStudents = async () => {
+    try {
+      setLoading(true);
+      
+      // Try to load from backend first
+      if (DATABASE_URL && DATABASE_URL !== 'YOUR_REPLIT_DATABASE_URL_HERE') {
+        const response = await fetch('/api/get-all-students');
+        const data = await response.json();
+        if (data.students) {
+          setAllStudentsData(data.students);
+          setLoading(false);
+          return;
+        }
+      }
+      
+      // Fallback to localStorage
+      const students = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('student_')) {
+          const data = JSON.parse(localStorage.getItem(key));
+          students.push(data);
+        }
+      }
+      setAllStudentsData(students);
+      setLoading(false);
+    } catch (error) {
+      console.error('Load error:', error);
+      setLoading(false);
+    }
+  };
+
+  const checkAnswers = async () => {
+    const currentLessons = lessons[currentTab];
+    const lesson = currentLessons[currentLesson];
+    let correct = 0;
+    
+    lesson.questions.forEach((q, idx) => {
+      const userAnswer = (answers[`${currentTab}-${currentLesson}-${idx}`] || '').trim();
+      const correctAnswer = q.answer.trim();
+      if (userAnswer.toLowerCase() === correctAnswer.toLowerCase()) {
+        correct++;
+      }
+    });
+
+    const score = Math.round((correct / lesson.questions.length) * 100);
+    const timestamp = new Date().toLocaleString();
+    
+    const resultData = {
+      studentName,
+      topic: currentTab.toUpperCase(),
+      lessonTitle: lesson.title,
+      score,
+      correct,
+      total: lesson.questions.length,
+      timestamp
+    };
+
+    // Load existing data
+    let existingData = { studentName, results: [] };
+    const stored = localStorage.getItem(`student_${studentName}`);
+    if (stored) {
+      existingData = JSON.parse(stored);
+    }
+
+    // Add or update result
+    const existingIndex = existingData.results.findIndex(
+      r => r.topic === resultData.topic && r.lessonTitle === resultData.lessonTitle
+    );
+
+    if (existingIndex >= 0) {
+      existingData.results[existingIndex] = resultData;
+    } else {
+      existingData.results.push(resultData);
+    }
+
+    await saveStudentData(existingData);
+    setShowResult(true);
+  };
+
+  const exportAllToExcel = async () => {
+    await loadAllStudents();
+    
+    if (allStudentsData.length === 0) {
+      alert('කිසිම student කෙනෙක් තවම submit කරලා නෑ!');
+      return;
+    }
+
+    let csvContent = "Student Name,Topic,Lesson,Score,Correct,Total,Submitted Date\n";
+    
+    allStudentsData.forEach(student => {
+      student.results.forEach(result => {
+        csvContent += `${student.studentName},${result.topic},${result.lessonTitle},${result.score}%,${result.correct},${result.total},${result.timestamp}\n`;
+      });
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'all_students_results.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleLogin = () => {
+    if (studentName.trim().length < 2) {
+      alert('කරුණාකර ඔබේ නම ඇතුළත් කරන්න!');
+      return;
+    }
+    setIsLoggedIn(true);
+  };
+
+  useEffect(() => {
+    if (showTeacherDashboard) {
+      loadAllStudents();
+    }
+  }, [showTeacherDashboard]);
+
+  // Login Screen
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
+        <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full">
+          <div className="text-center mb-6">
+            <Code size={48} className="mx-auto text-indigo-600 mb-4" />
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">Web Development Learning</h1>
+            <p className="text-gray-600">HTML, CSS & JavaScript සිංහලෙන් ඉගෙන ගන්න</p>
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                ඔබේ නම ඇතුළත් කරන්න
+              </label>
+              <input
+                type="text"
+                value={studentName}
+                onChange={(e) => setStudentName(e.target.value)}
+                placeholder="උදා: Kamal Perera"
+                className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none"
+                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+              />
+            </div>
+            
+            <button
+              onClick={handleLogin}
+              className="w-full py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition"
+            >
+              ආරම්භ කරන්න
+            </button>
+
+            <button
+              onClick={() => setShowTeacherDashboard(true)}
+              className="w-full py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition flex items-center justify-center gap-2"
+            >
+              <Users size={20} />
+              Teacher Dashboard
+            </button>
+          </div>
+
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+            <p className="text-sm text-gray-700">
+              <strong>සටහන:</strong> ඔබේ progress save වෙනවා. Teacher හට marks බලන්න පුළුවන්!
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Teacher Dashboard
+  if (showTeacherDashboard) {
+    const totalStudents = allStudentsData.length;
+    const totalSubmissions = allStudentsData.reduce((sum, s) => sum + (s.results?.length || 0), 0);
+    const avgScore = totalSubmissions > 0 
+      ? Math.round(allStudentsData.reduce((sum, s) => 
+          sum + (s.results?.reduce((rs, r) => rs + r.score, 0) || 0), 0) / totalSubmissions)
+      : 0;
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <div className="flex justify-between items-center flex-wrap gap-4">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-800 mb-2 flex items-center gap-2">
+                  <Users size={32} />
+                  Teacher Dashboard
+                </h1>
+                <p className="text-gray-600">සියලු Students ගේ Progress</p>
+              </div>
+              <div className="flex gap-4">
+                <button
+                  onClick={exportAllToExcel}
+                  className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold"
+                >
+                  <Download size={20} />
+                  Export All Data
+                </button>
+                <button
+                  onClick={() => setShowTeacherDashboard(false)}
+                  className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-semibold"
+                >
+                  Back
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Statistics */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <div className="flex items-center gap-4">
+                <Users size={40} className="text-blue-600" />
+                <div>
+                  <p className="text-gray-600 text-sm">Total Students</p>
+                  <p className="text-3xl font-bold text-gray-800">{totalStudents}</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <div className="flex items-center gap-4">
+                <CheckCircle size={40} className="text-green-600" />
+                <div>
+                  <p className="text-gray-600 text-sm">Total Submissions</p>
+                  <p className="text-3xl font-bold text-gray-800">{totalSubmissions}</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <div className="flex items-center gap-4">
+                <Trophy size={40} className="text-yellow-600" />
+                <div>
+                  <p className="text-gray-600 text-sm">Avg Score</p>
+                  <p className="text-3xl font-bold text-gray-800">{avgScore}%</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Students List */}
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <BarChart3 size={24} />
+              Student Results
+            </h2>
+            
+            {loading ? (
+              <p className="text-center py-8 text-gray-600">Loading...</p>
+            ) : allStudentsData.length === 0 ? (
+              <p className="text-center py-8 text-gray-600">තවම students කවුරුත් submit කරලා නෑ!</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Student Name</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Topic</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Lesson</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Score</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Correct/Total</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {allStudentsData.map((student, idx) => 
+                      student.results?.map((result, ridx) => (
+                        <tr key={`${idx}-${ridx}`} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 font-medium text-gray-800">{student.studentName}</td>
+                          <td className="px-4 py-3">
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm font-semibold">
+                              {result.topic}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-gray-700">{result.lessonTitle}</td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-1 rounded font-semibold ${
+                              result.score === 100 ? 'bg-green-100 text-green-800' :
+                              result.score >= 70 ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {result.score}%
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-gray-700">{result.correct}/{result.total}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600">{result.timestamp}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Student Learning Interface
+  const currentLessons = lessons[currentTab];
+  const lesson = currentLessons[currentLesson];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <div className="flex justify-between items-center flex-wrap gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800 mb-2">Welcome, {studentName}! 👋</h1>
+              <p className="text-gray-600">Learn HTML, CSS & JavaScript with practical exercises</p>
+            </div>
+            <button
+              onClick={() => setIsLoggedIn(false)}
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="flex gap-4 mb-6 flex-wrap">
+          {['html', 'css', 'js'].map(tab => (
+            <button
+              key={tab}
+              onClick={() => { setCurrentTab(tab); setCurrentLesson(0); setShowResult(false); }}
+              className={`flex-1 min-w-[100px] py-3 px-6 rounded-lg font-semibold transition ${
+                currentTab === tab
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              {tab.toUpperCase()}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Lesson List */}
+          <div className="lg:col-span-1 bg-white rounded-lg shadow-lg p-4">
+            <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <BookOpen size={20} />
+              Lessons
+            </h3>
+            <div className="space-y-2">
+              {currentLessons.map((les, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => { setCurrentLesson(idx); setShowResult(false); setAnswers({}); }}
+                  className={`w-full text-left p-3 rounded-lg transition ${
+                    currentLesson === idx
+                      ? 'bg-indigo-100 border-l-4 border-indigo-600 font-semibold'
+                      : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="text-sm font-medium text-gray-800">{les.title}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="lg:col-span-3">
+            {!showResult ? (
+              <div className="bg-white rounded-lg shadow-lg p-6">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">{lesson.title}</h2>
+                
+                <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+                  <p className="text-gray-700">{lesson.description}</p>
+                </div>
+
+                <div className="mb-6">
+                  <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                    <Code size={18} />
+                    Example:
+                  </h3>
+                  <pre className="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto">
+                    <code>{lesson.example}</code>
+                  </pre>
+                </div>
+
+                <div className="space-y-6">
+                  <h3 className="font-semibold text-gray-800 text-lg">Practice Questions:</h3>
+                  {lesson.questions.map((q, idx) => (
+                    <div key={idx} className="p-4 border-2 border-gray-200 rounded-lg">
+                      <p className="font-medium text-gray-800 mb-3">
+                        {idx + 1}. {q.q}
+                      </p>
+                      <input
+                        type="text"
+                        value={answers[`${currentTab}-${currentLesson}-${idx}`] || ''}
+                        onChange={(e) => setAnswers({...answers, [`${currentTab}-${currentLesson}-${idx}`]: e.target.value})}
+                        placeholder="ඔබේ answer මෙහි type කරන්න..."
+                        className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none font-mono"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  onClick={checkAnswers}
+                  className="mt-6 w-full py-4 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition flex items-center justify-center gap-2"
+                >
+                  <PlayCircle size={20} />
+                  Submit Answers
+                </button>
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg shadow-lg p-6">
+                <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Results for {lesson.title}</h2>
+                
+                <div className="mb-6 p-6 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg text-white text-center">
+                  <p className="text-lg mb-2">Your Score</p>
+                  <p className="text-5xl font-bold">
+                    {Math.round((lesson.questions.filter((q, idx) => 
+                      (answers[`${currentTab}-${currentLesson}-${idx}`] || '').trim().toLowerCase() === 
+                      q.answer.trim().toLowerCase()
+                    ).length / lesson.questions.length) * 100)}%
+                  </p>
+                  <p className="text-sm mt-2 opacity-90">
+                    {lesson.questions.filter((q, idx) => 
+                      (answers[`${currentTab}-${currentLesson}-${idx}`] || '').trim().toLowerCase() === 
+                      q.answer.trim().toLowerCase()
+                    ).length} out of {lesson.questions.length} correct
+                  </p>
+                </div>
+
+                <div className="space-y-4 mb-6">
+                  {lesson.questions.map((q, idx) => {
+                    const userAnswer = (answers[`${currentTab}-${currentLesson}-${idx}`] || '').trim();
+                    const correctAnswer = q.answer.trim();
+                    const isCorrect = userAnswer.toLowerCase() === correctAnswer.toLowerCase();
+                    
+                    return (
+                      <div key={idx} className={`p-4 rounded-lg border-2 ${
+                        isCorrect ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-500'
+                      }`}>
+                        <p className="font-medium text-gray-800 mb-2">{idx + 1}. {q.q}</p>
+                        <div className="space-y-2">
+                          <div>
+                            <span className="text-sm text-gray-600">Your answer: </span>
+                            <code className="bg-gray-100 px-2 py-1 rounded">{userAnswer || '(empty)'}</code>
+                          </div>
+                          {!isCorrect && (
+                            <div>
+                              <span className="text-sm text-gray-600">Correct answer: </span>
+                              <code className="bg-green-100 px-2 py-1 rounded text-green-800">{correctAnswer}</code>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2">
+                            {isCorrect ? (
+                              <span className="text-green-600 font-semibold flex items-center gap-1">
+                                <CheckCircle size={16} /> Correct!
+                              </span>
+                            ) : (
+                              <span className="text-red-600 font-semibold">✗ Incorrect</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => { setShowResult(false); setAnswers({}); }}
+                    className="flex-1 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700"
+                  >
+                    Try Again
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (currentLesson < currentLessons.length - 1) {
+                        setCurrentLesson(currentLesson + 1);
+                        setShowResult(false);
+                        setAnswers({});
+                      } else {
+                        alert('ඔබ මේ topic එකේ සියලුම lessons complete කර ඇත! 🎉');
+                      }
+                    }}
+                    className="flex-1 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700"
+                  >
+                    Next Lesson
+                  </button>
+                </div>
+
+                <div className="mt-6 p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded">
+                  <p className="text-sm text-gray-700">
+                    <strong>සටහන:</strong> ඔබේ results automatically save වෙලා තිබෙනවා. Teacher හට ඔබේ progress බලන්න පුළුවන්!
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default WebDevLearning;
